@@ -34,6 +34,7 @@ INSTALLED_APPS = [
 
     "graphene_django",
     'geo',
+    'products',
 
 
     'django.contrib.admin',
