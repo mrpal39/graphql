@@ -35,6 +35,8 @@ INSTALLED_APPS = [
     "graphene_django",
     'geo',
     'products',
+    'accounts',
+    "graphql_auth",
 
 
     'django.contrib.admin',
@@ -62,6 +64,7 @@ TEMPLATES = [
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],
         'APP_DIRS': True,
+
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -74,12 +77,49 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'graphApi.wsgi.application'
-
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
+AUTH_USER_MODEL = 'accounts.CustomUser'
 
+GRAPHQL_JWT = {
+    "JWT_VERIFY_EXPIRATION": False,
+    "JWT_ALLOW_ANY_CLASSES": [
+        "graphql_auth.mutations.Register",
+        # "graphql_auth.mutations.VerifyAccount",
+        # "graphql_auth.mutations.ResendActivationEmail",
+        # "graphql_auth.mutations.SendPasswordResetEmail",
+        # "graphql_auth.mutations.PasswordReset",
+        # "graphql_auth.mutations.ObtainJSONWebToken",
+        "graphql_auth.mutations.VerifyToken",
+        "graphql_auth.mutations.RefreshToken",
+        # "graphql_auth.mutations.RevokeToken",
+        # "graphql_auth.mutations.VerifySecondaryEmail",
+    ],
+    # optional
+    "JWT_LONG_RUNNING_REFRESH_TOKEN": True,
+}
+GRAPHENE = {
+    "SCHEMA": "accounts.api.schema",
+    "MIDDLEWARE": [
+        "graphql_jwt.middleware.JSONWebTokenMiddleware",
+    ],
+}
+AUTHENTICATION_BACKENDS = [
+    # remove this
+    # "graphql_jwt.backends.JSONWebTokenBackend",
 
+    # add this
+    "graphql_auth.backends.GraphQLAuthBackend",
+
+    # ...
+]
+
+GRAPHQL_AUTH = {
+    'LOGIN_ALLOWED_FIELDS': ['email', 'username'],
+    # ...
+}
 DATABASES = {
     'default': {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
@@ -109,7 +149,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 
@@ -131,3 +170,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+GRAPHENE = {
+    "SCHEMA": "geo.schema.schema"
+}

@@ -1,56 +1,45 @@
 import graphene
 from graphene import relay
 from graphene_django import DjangoObjectType
-
-from . models import *
+from graphene_django.filter import DjangoFilterConnectionField
+from . models import Category, Book, Grocery, Author, Ingredient
 
 
 class CategoryType(DjangoObjectType):
 
     class Meta:
         model = Category
-        fields = ('id', 'title')
+
+        filter_fields = ['title', 'ingredients']
+        interfaces = (relay.Node, )
 
 
 class BookType(DjangoObjectType):
     class Meta:
         model = Book
-        fields = (
-            'id',
-            'title',
-            'author',
-            'isbn',
-            'pages',
-            'price',
-            'quantity',
-            'description',
-            'status',
-            'date_created',
-        )
 
 
 class AuthorType(DjangoObjectType):
     class Meta:
         model = Author
-        fields = (
-            'id',
-            'name',
-        )
 
 
 class GroceryType(DjangoObjectType):
     class Meta:
         model = Grocery
-        fields = (
-            'product_tag',
-            'name',
-            'category',
-            'price',
-            'quantity',
-            'imageurl',
-            'status',
-            'date_created',
-        )
+
+
+class IngredientType(DjangoObjectType):
+    class Meta:
+        model = Ingredient
+        fields = ("id", "name", "notes", "category")
+        filter_fields = {
+            'name': ['exact', 'icontains', 'istartswith'],
+            'notes': ['exact', 'icontains'],
+            'category': ['exact'],
+            'category__title': ['exact'],
+        }
+        interfaces = (relay.Node, )
 
 
 class UpdateCategory(graphene.Mutation):
@@ -60,12 +49,26 @@ class UpdateCategory(graphene.Mutation):
 
     category = graphene.Field(CategoryType)
 
-    @classmethod
     def mutate(self, info, title, id):
         category = Category.objects.get(id=id)
         category.title = title
         category.save()
         return UpdateCategory(title=title, id=id)
+
+
+class CreateIngredent(graphene.Mutation):
+    ingredients = graphene.Field(IngredientType())
+
+    class Arguments:
+        name = graphene.String(required=True)
+        notes = graphene.String()
+        category = graphene.ID()
+
+    def mutate(self, info,  notes, name, category):
+        cat = Ingredient(name=name, notes=notes, category=category)
+        cat.save()
+
+        return CreateIngredent(ingredients=cat)
 
 
 class CreateCategory(graphene.Mutation):
@@ -74,7 +77,6 @@ class CreateCategory(graphene.Mutation):
     class Arguments:
         title = graphene.String()
 
-    @classmethod
     def mutate(self, info, title):
         cat = Category(title=title)
         # category.title = title
@@ -96,9 +98,8 @@ class CreateBook(graphene.Mutation):
     class Arguments:
         input = BookInput(required=True)
 
-    book = graphene.Field(BookType)
+    Fieldbook = graphene.Field(BookType)
 
-    @classmethod
     def mutate(self, info, input):
         book = Book()
         book.title = input.title
@@ -109,7 +110,7 @@ class CreateBook(graphene.Mutation):
         book.description = input.description
         book.status = input.status
         book.save()
-        return CreateBook(Book=book)
+        return CreateBook(Fieldbook=book)
 
 
 class UpdateBook(graphene.Mutation):
@@ -120,7 +121,6 @@ class UpdateBook(graphene.Mutation):
 
     book = graphene.Field(BookType)
 
-    @classmethod
     def mutate(cls, root, info, input, id):
         book = Book.objects.get(pk=id)
         book.title = input.title
@@ -139,15 +139,41 @@ class Mutation(graphene.ObjectType):
     update_book = UpdateBook.Field()
     create_category = CreateCategory.Field()
     update_category = UpdateCategory.Field()
+    create_ingrdent = CreateIngredent.Field()
 
 
 class Query(object):
-    categories = graphene.List(CategoryType)
-    books = graphene.List(BookType)
-    author = graphene.List(AuthorType)
-    groceries = graphene.List(GroceryType)
+    all_categories = graphene.List(CategoryType)
+    all_books = graphene.List(BookType)
+    all_author = graphene.List(AuthorType)
+    all_groceries = graphene.List(GroceryType)
+    all_ingredients = graphene.List(IngredientType)
+    category_by_name = graphene.Field(
+        CategoryType, title=graphene.String(required=True))
+    category = relay.Node.Field(CategoryType)
+    all_categories_filter = DjangoFilterConnectionField(CategoryType)
+
+    ingredient = relay.Node.Field(IngredientType)
+    all_ingredients_filter = DjangoFilterConnectionField(IngredientType)
+    book_by_id = graphene.Field(BookType, id=graphene.Int())
+
+    def resolve_book_by_id(root, info, id):
+        return Book.objects.all()
+
+    def resolve_all_ingredients(root, info):
+        # We can easily optimize query count in the resolve method
+        return Ingredient.objects.select_related("category").all()
+
+    def resolve_category_by_name(root, info, title):
+        try:
+            return Category.objects.get(title=title)
+        except Category.DoesNotExist:
+            return None
 
     def resolve_all_categories(self, info):
+        return Category.objects.all()
+
+    def resolve_all_(self, info):
         return Category.objects.all()
 
     def resolve_all_books(self, info):

@@ -10,7 +10,7 @@ class Author(models.Model):
         verbose_name_plural = 'Author'
 
     def __str__(self):
-        return self.title
+        return self.name
 
 
 class Category(models.Model):
@@ -54,6 +54,17 @@ class Grocery(models.Model):
 
     class Meta:
         ordering = ['-date_created']
+
+    def __str__(self):
+        return self.name
+
+
+class Ingredient(models.Model):
+    name = models.CharField(max_length=100)
+    notes = models.TextField()
+    category = models.ForeignKey(
+        Category, related_name="ingredients", on_delete=models.CASCADE
+    )
 
     def __str__(self):
         return self.name
